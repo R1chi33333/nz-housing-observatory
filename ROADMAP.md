@@ -6,7 +6,7 @@ Development follows small, releasable increments. Each item below is one loop.
 
 - [x] Loop 1: repository scaffold, CI pipeline, deployable blank page
 - [x] Loop 2: source research — datasets chosen and documented with links, licences and quirks
-- [ ] Loop 3: pipeline core — download, parse and clean rent data (region name standardisation, missing value policy), tested
+- [x] Loop 3: pipeline core — rent data fetched, cleaned and standardised, fully tested
 - [ ] Loop 4: house price series cleaned and merged, static JSON emitted to public/data with a manifest (sources, generated-at)
 - [ ] Loop 5: GitHub Actions monthly cron runs the pipeline and commits refreshed data
 - [ ] Release v0.1.0
