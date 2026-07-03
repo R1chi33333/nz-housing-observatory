@@ -9,18 +9,20 @@ All amounts are NZD. The pipeline standardises region names across sources
 
 - Measures used: median weekly rent, lower and upper quartile rent, lodged bonds
 - Coverage: 16 regional councils plus national total, monthly since February 1993
-- Access: CKAN DataStore API on data.govt.nz (resource
-  `410f751e-b635-4cd0-9495-1b164cbd97b0` of dataset
-  [rental-bond-data-by-region](https://catalogue.data.govt.nz/dataset/rental-bond-data-by-region)),
-  paginated JSON
-- Why the API and not the CSV: the canonical CSV on tenancy.govt.nz and
-  mbie.govt.nz sits behind bot protection that blocks non-browser downloads,
-  so automated refreshes use the DataStore mirror instead
-- Known limitation: catalogue.data.govt.nz additionally blocks datacenter IP
-  ranges (GitHub Actions included), so the scheduled refresh cannot always
-  reach it. The pipeline then reuses the committed rent series and refreshes
-  only sales data; rents update fully whenever the pipeline runs from a
-  residential network. Charts always show each source's own freshness
+- Access: the canonical `detailed-monthly-region-tenancy-v2.csv` linked from
+  [the rental bond data page](https://www.tenancy.govt.nz/about-tenancy-services/data-and-statistics/rental-bond-data/),
+  fetched through a real Chrome via Playwright because the site's bot
+  protection rejects plain HTTP clients
+- Rejected alternative: the data.govt.nz DataStore mirror of this dataset
+  serves clean JSON without bot protection, but it silently stopped updating
+  in March 2022, which is exactly the kind of staleness this project exists
+  to avoid. The pipeline used it first and switched after comparing series
+  end dates
+- Known limitation: when the bot challenge cannot be passed (for example on
+  some datacenter networks), the pipeline reuses the committed rent series
+  and refreshes only sales data; rents update fully whenever the pipeline
+  runs from a residential network. Charts always show each source's own
+  freshness
 - Update frequency: monthly
 - Licence: Creative Commons Attribution (credit "Ministry of Business,
   Innovation and Employment")

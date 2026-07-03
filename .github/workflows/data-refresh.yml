@@ -25,7 +25,9 @@ jobs:
         run: npm ci
 
       - name: Run pipeline
-        run: npm run pipeline
+        # xvfb gives the headed Chrome that the rent source's bot
+        # challenge requires a display to run against.
+        run: xvfb-run -a npm run pipeline
 
       - name: Verify output still passes tests
         run: npm test

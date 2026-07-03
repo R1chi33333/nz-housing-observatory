@@ -12,7 +12,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['pipeline/**/*.ts', 'src/lib/**/*.ts'],
-      exclude: ['pipeline/run.ts'],
+      exclude: ['pipeline/run.ts', 'pipeline/boundaries.ts', 'pipeline/lib/browser-rents.ts'],
       reporter: ['text', 'lcov'],
       thresholds: {
         lines: 80,

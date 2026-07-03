@@ -8,10 +8,11 @@
  */
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { fetchRentsCsvViaBrowser } from './lib/browser-rents.ts';
 import { extractRentSeries } from './lib/fallback.ts';
 import { buildHousingData } from './lib/merge.ts';
 import { cleanSales, fetchSalesWorkbook, parseSalesSheet } from './lib/prices.ts';
-import { cleanRents, fetchRentRecords } from './lib/rents.ts';
+import { cleanRents, parseRentsCsv } from './lib/rents.ts';
 import type { HousingData, MonthPoint } from './lib/types.ts';
 
 const OUT_DIR = new URL('../public/data/', import.meta.url);
@@ -19,10 +20,11 @@ const OUT_FILE = new URL('housing.json', OUT_DIR);
 
 async function loadRents(): Promise<Map<string, MonthPoint[]>> {
   try {
-    console.log('Fetching MBIE rent records...');
-    const records = await fetchRentRecords();
-    console.log(`  ${String(records.length)} records`);
-    return cleanRents(records);
+    console.log('Fetching MBIE rent CSV through Chrome...');
+    const csv = await fetchRentsCsvViaBrowser();
+    const rows = parseRentsCsv(csv);
+    console.log(`  ${String(rows.length)} rows`);
+    return cleanRents(rows);
   } catch (error) {
     console.warn(
       `  Rent source unavailable: ${error instanceof Error ? error.message : 'unknown error'}`,

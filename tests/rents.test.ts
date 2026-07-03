@@ -1,99 +1,127 @@
-import { describe, expect, it, vi } from 'vitest';
-import { cleanRents, fetchRentRecords, type RawRentRecord } from '../pipeline/lib/rents.ts';
+import { describe, expect, it } from 'vitest';
+import { cleanRents, parseRentsCsv, type RawRentRow } from '../pipeline/lib/rents.ts';
 
-function record(overrides: Partial<RawRentRecord>): RawRentRecord {
+const HEADER =
+  '"Time Frame","Location Id","Location","Lodged Bonds","Active Bonds","Closed Bonds","Median Rent","Geometric Mean Rent","Upper Quartile Rent","Lower Quartile Rent","Log Std Dev Weekly Rent"';
+
+function csvLine(
+  timeFrame: string,
+  location: string,
+  bonds: string,
+  median: string,
+  upper: string,
+  lower: string,
+): string {
+  return `"${timeFrame}","2","${location}","${bonds}","28836","1,962","${median}","186","${upper}","${lower}","0.36"`;
+}
+
+describe('parseRentsCsv', () => {
+  it('parses quoted fields with comma thousands separators', () => {
+    const rows = parseRentsCsv(
+      [HEADER, csvLine('2026-04-01', 'Auckland Region', '2,376', '680', '780', '580')].join('\n'),
+    );
+    expect(rows).toEqual([
+      {
+        location: 'Auckland Region',
+        timeFrame: '2026-04-01',
+        medianRent: 680,
+        lowerQuartile: 580,
+        upperQuartile: 780,
+        lodgedBonds: 2376,
+      },
+    ]);
+  });
+
+  it('treats blanks, dashes and zeros as suppressed', () => {
+    const rows = parseRentsCsv(
+      [HEADER, csvLine('2026-04-01', 'Gisborne Region', '', '-', '0', '  ')].join('\r\n'),
+    );
+    expect(rows[0]).toMatchObject({
+      lodgedBonds: undefined,
+      medianRent: undefined,
+      upperQuartile: undefined,
+      lowerQuartile: undefined,
+    });
+  });
+
+  it('throws on an empty file or a changed header', () => {
+    expect(() => parseRentsCsv('')).toThrow('empty');
+    expect(() => parseRentsCsv('"Totally","Different"\n"1","2"')).toThrow('header changed');
+  });
+});
+
+function row(overrides: Partial<RawRentRow>): RawRentRow {
   return {
-    Location: 'Auckland Region',
-    'Time Frame': '2026-05-01T00:00:00',
-    'Median Rent': 650,
-    'Lower Quartile Rent': 560,
-    'Upper Quartile Rent': 750,
-    'Lodged Bonds': 3200,
+    location: 'Auckland Region',
+    timeFrame: '2026-04-01',
+    medianRent: 650,
+    lowerQuartile: 560,
+    upperQuartile: 750,
+    lodgedBonds: 3200,
     ...overrides,
   };
 }
 
 describe('cleanRents', () => {
-  it('groups records into sorted per-region series', () => {
+  it('groups rows into sorted per-region series', () => {
     const cleaned = cleanRents([
-      record({ 'Time Frame': '2026-05-01T00:00:00' }),
-      record({ 'Time Frame': '2026-03-01T00:00:00', 'Median Rent': 640 }),
-      record({ Location: 'Wellington Region', 'Median Rent': 600 }),
+      row({ timeFrame: '2026-04-01' }),
+      row({ timeFrame: '2026-02-01', medianRent: 640 }),
+      row({ location: 'Wellington Region', medianRent: 600 }),
     ]);
 
     const auckland = cleaned.get('auckland');
-    expect(auckland?.map((p) => p.month)).toEqual(['2026-03', '2026-05']);
+    expect(auckland?.map((p) => p.month)).toEqual(['2026-02', '2026-04']);
     expect(auckland?.[0]?.medianRent).toBe(640);
     expect(cleaned.get('wellington')?.[0]?.medianRent).toBe(600);
   });
 
   it('maps ALL to the national series and drops NA and unknown locations', () => {
     const cleaned = cleanRents([
-      record({ Location: 'ALL' }),
-      record({ Location: 'NA' }),
-      record({ Location: 'Far North District' }),
+      row({ location: 'ALL' }),
+      row({ location: 'NA' }),
+      row({ location: 'Far North District' }),
     ]);
 
     expect([...cleaned.keys()]).toEqual(['new-zealand']);
   });
 
   it('omits suppressed values instead of inventing them', () => {
-    const cleaned = cleanRents([
-      record({ 'Median Rent': null, 'Lower Quartile Rent': 0, 'Lodged Bonds': 12 }),
-    ]);
+    const cleaned = cleanRents([row({ medianRent: undefined, lowerQuartile: undefined })]);
 
     const point = cleaned.get('auckland')?.[0];
     expect(point?.medianRent).toBeUndefined();
     expect(point?.rentLowerQuartile).toBeUndefined();
     expect(point?.rentUpperQuartile).toBe(750);
-    expect(point?.lodgedBonds).toBe(12);
+    expect(point?.lodgedBonds).toBe(3200);
   });
 
-  it('keeps the latest record when a month appears twice', () => {
-    const cleaned = cleanRents([record({ 'Median Rent': 600 }), record({ 'Median Rent': 660 })]);
+  it('keeps the latest row when a month appears twice', () => {
+    const cleaned = cleanRents([row({ medianRent: 600 }), row({ medianRent: 660 })]);
 
     expect(cleaned.get('auckland')).toHaveLength(1);
     expect(cleaned.get('auckland')?.[0]?.medianRent).toBe(660);
   });
 
   it('drops malformed time frames', () => {
-    const cleaned = cleanRents([record({ 'Time Frame': 'garbage' })]);
+    const cleaned = cleanRents([row({ timeFrame: 'garbage' })]);
     expect(cleaned.size).toBe(0);
   });
 });
 
-describe('fetchRentRecords', () => {
-  it('pages through the datastore until total is reached', async () => {
-    const page = (offset: number, total: number) =>
-      new Response(
-        JSON.stringify({
-          success: true,
-          result: { records: [record({ 'Lodged Bonds': offset })], total },
-        }),
-      );
-    const fetchImpl = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(page(0, 2500))
-      .mockResolvedValueOnce(page(1000, 2500))
-      .mockResolvedValueOnce(page(2000, 2500));
+describe('parseRentsCsv end to end with cleanRents', () => {
+  it('round-trips a realistic snippet', () => {
+    const csv = [
+      HEADER,
+      csvLine('2026-03-01', 'ALL', '9,147', '620', '750', '500'),
+      csvLine('2026-03-01', 'NA', '417', '560', '640', '470'),
+      csvLine('2026-03-01', 'Auckland Region', '2,376', '680', '780', '580'),
+      csvLine('2026-04-01', 'Auckland Region', '2,410', '685', '790', '585'),
+    ].join('\r\n');
 
-    const records = await fetchRentRecords(fetchImpl);
+    const cleaned = cleanRents(parseRentsCsv(csv));
 
-    expect(records).toHaveLength(3);
-    expect(fetchImpl).toHaveBeenCalledTimes(3);
-    const secondUrl = fetchImpl.mock.calls[1]?.[0];
-    expect(typeof secondUrl === 'string' ? secondUrl : '').toContain('offset=1000');
-  });
-
-  it('throws on http errors', async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response('', { status: 503 }));
-    await expect(fetchRentRecords(fetchImpl)).rejects.toThrow('503');
-  });
-
-  it('throws when the datastore reports failure', async () => {
-    const fetchImpl = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(new Response(JSON.stringify({ success: false })));
-    await expect(fetchRentRecords(fetchImpl)).rejects.toThrow('reported failure');
+    expect([...cleaned.keys()].sort()).toEqual(['auckland', 'new-zealand']);
+    expect(cleaned.get('auckland')?.map((p) => p.medianRent)).toEqual([680, 685]);
   });
 });

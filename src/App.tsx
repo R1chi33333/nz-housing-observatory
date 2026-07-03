@@ -1,11 +1,15 @@
 import { useMemo, useState } from 'react';
 import { Map as MapIcon } from 'lucide-react';
 import { RegionMap } from '@/components/RegionMap';
-import { formatMonth, formatNzd, latestValue, useHousingData } from '@/lib/data';
+import { TrendChart } from '@/components/TrendChart';
+import { formatMonth, latestValue, useHousingData, type RegionSeries } from '@/lib/data';
+import { toChartPoints } from '@/lib/series';
+
+const NATIONAL = 'new-zealand';
 
 export default function App() {
   const { data, error } = useHousingData();
-  const [selected, setSelected] = useState<string | undefined>();
+  const [selected, setSelected] = useState<string>(NATIONAL);
 
   const priceValues = useMemo(() => {
     const values = new Map<string, number>();
@@ -20,7 +24,10 @@ export default function App() {
     return values;
   }, [data]);
 
-  const selectedRegion = data?.housing.regions.find((region) => region.slug === selected);
+  const series: RegionSeries | undefined =
+    selected === NATIONAL
+      ? data?.housing.national
+      : data?.housing.regions.find((region) => region.slug === selected);
 
   return (
     <div className="flex h-screen flex-col">
@@ -43,7 +50,7 @@ export default function App() {
             <RegionMap
               boundaries={data.boundaries}
               values={priceValues}
-              selected={selected}
+              selected={selected === NATIONAL ? undefined : selected}
               onSelect={setSelected}
             />
           ) : (
@@ -53,48 +60,44 @@ export default function App() {
           )}
           {data && (
             <div className="absolute bottom-6 left-4 rounded-md border border-border bg-surface-1/90 px-3 py-2 text-xs text-fg-muted backdrop-blur">
-              Median sale price, 3-month rolling. Darker is cheaper.
+              Median sale price, 3-month rolling. Darker is cheaper. Click a region.
             </div>
           )}
         </div>
 
-        <aside className="w-80 shrink-0 overflow-y-auto border-l border-border p-5 max-lg:hidden">
-          {selectedRegion && data ? (
+        <aside className="w-96 shrink-0 overflow-y-auto border-l border-border p-5 max-lg:hidden">
+          {series && data ? (
             <div className="flex flex-col gap-4">
-              <h1 className="text-lg font-semibold">{selectedRegion.name}</h1>
-              {(() => {
-                const price = latestValue(selectedRegion, 'medianSalePrice');
-                const rent = latestValue(selectedRegion, 'medianRent');
-                return (
-                  <div className="flex flex-col gap-3">
-                    <div className="rounded-md border border-border bg-surface-1 p-4">
-                      <p className="text-xs text-fg-muted">Median sale price</p>
-                      <p className="mt-1 font-mono text-xl font-semibold">
-                        {price ? formatNzd(price.value) : 'No data'}
-                      </p>
-                      {price && (
-                        <p className="mt-0.5 text-xs text-fg-muted">{formatMonth(price.month)}</p>
-                      )}
-                    </div>
-                    <div className="rounded-md border border-border bg-surface-1 p-4">
-                      <p className="text-xs text-fg-muted">Median weekly rent</p>
-                      <p className="mt-1 font-mono text-xl font-semibold">
-                        {rent ? formatNzd(rent.value) : 'No data'}
-                      </p>
-                      {rent && (
-                        <p className="mt-0.5 text-xs text-fg-muted">{formatMonth(rent.month)}</p>
-                      )}
-                    </div>
-                    <p className="text-xs leading-relaxed text-fg-muted">
-                      Trend charts land in the next loop.
-                    </p>
-                  </div>
-                );
-              })()}
+              <div className="flex items-baseline justify-between gap-2">
+                <h1 className="text-lg font-semibold">{series.name}</h1>
+                {selected !== NATIONAL && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelected(NATIONAL);
+                    }}
+                    className="text-xs text-fg-muted transition-colors hover:text-fg"
+                  >
+                    Back to national
+                  </button>
+                )}
+              </div>
+              <TrendChart
+                title="Median sale price"
+                points={toChartPoints(series, 'medianSalePrice')}
+                colour="#f59e0b"
+                sourceName="HUD property sales statistics"
+              />
+              <TrendChart
+                title="Median weekly rent"
+                points={toChartPoints(series, 'medianRent')}
+                colour="#fbbf24"
+                sourceName="MBIE Tenancy Services bond data"
+              />
             </div>
           ) : (
             <div className="flex h-full items-center justify-center text-center text-sm text-fg-muted">
-              Select a region on the map
+              Loading...
             </div>
           )}
         </aside>
