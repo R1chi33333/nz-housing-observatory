@@ -19,6 +19,19 @@ describe('normaliseRegionName', () => {
     expect(normaliseRegionName('Manawatū-Whanganui')).toBe('manawatu-whanganui');
   });
 
+  it('maps Natural Earth style names with District and City suffixes', () => {
+    expect(normaliseRegionName('Gisborne District')).toBe('gisborne');
+    expect(normaliseRegionName('Marlborough District')).toBe('marlborough');
+    expect(normaliseRegionName('Nelson City')).toBe('nelson');
+    expect(normaliseRegionName('Tasman District')).toBe('tasman');
+  });
+
+  it('does not match outlying island units', () => {
+    expect(normaliseRegionName('Auckland Islands')).toBeUndefined();
+    expect(normaliseRegionName('Chatham Islands Territory')).toBeUndefined();
+    expect(normaliseRegionName('Tokelau')).toBeUndefined();
+  });
+
   it('returns undefined for non-region labels', () => {
     expect(normaliseRegionName('NA')).toBeUndefined();
     expect(normaliseRegionName('Area Outside Region')).toBeUndefined();

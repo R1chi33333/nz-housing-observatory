@@ -41,7 +41,7 @@ export function normaliseRegionName(raw: string): string | undefined {
     .replaceAll(/\p{M}/gu, '')
     .toLowerCase()
     .replaceAll(/[‘’']/g, '')
-    .replaceAll(/\s+region$/g, '')
+    .replaceAll(/\s+(region|district|city)$/g, '')
     .replaceAll(/[^a-z]+/g, '-')
     .replaceAll(/^-|-$/g, '');
 
