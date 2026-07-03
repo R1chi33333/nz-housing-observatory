@@ -1,19 +1,43 @@
 /**
  * Rebuild public/data/housing.json from the open datasets.
  * Run with: npm run pipeline
+ *
+ * The rent source is unreachable from datacenter IPs (see
+ * fallback.ts); when it fails, the committed rent series is reused
+ * and only sales data refreshes.
  */
 
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { extractRentSeries } from './lib/fallback.ts';
 import { buildHousingData } from './lib/merge.ts';
 import { cleanSales, fetchSalesWorkbook, parseSalesSheet } from './lib/prices.ts';
 import { cleanRents, fetchRentRecords } from './lib/rents.ts';
+import type { HousingData, MonthPoint } from './lib/types.ts';
 
 const OUT_DIR = new URL('../public/data/', import.meta.url);
+const OUT_FILE = new URL('housing.json', OUT_DIR);
 
-console.log('Fetching MBIE rent records...');
-const rentRecords = await fetchRentRecords();
-console.log(`  ${String(rentRecords.length)} records`);
-const rents = cleanRents(rentRecords);
+async function loadRents(): Promise<Map<string, MonthPoint[]>> {
+  try {
+    console.log('Fetching MBIE rent records...');
+    const records = await fetchRentRecords();
+    console.log(`  ${String(records.length)} records`);
+    return cleanRents(records);
+  } catch (error) {
+    console.warn(
+      `  Rent source unavailable: ${error instanceof Error ? error.message : 'unknown error'}`,
+    );
+    console.warn('  Falling back to the rent series committed in housing.json.');
+    const previous = JSON.parse(await readFile(OUT_FILE, 'utf8')) as HousingData;
+    const recovered = extractRentSeries(previous);
+    if (recovered.size === 0) {
+      throw new Error('No previous rent data available to fall back to');
+    }
+    return recovered;
+  }
+}
+
+const rents = await loadRents();
 
 console.log('Fetching HUD sales workbook...');
 const workbook = await fetchSalesWorkbook();
@@ -23,7 +47,7 @@ const sales = cleanSales(parseSalesSheet(workbook));
 const data = buildHousingData(rents, sales, new Date().toISOString());
 
 await mkdir(OUT_DIR, { recursive: true });
-await writeFile(new URL('housing.json', OUT_DIR), JSON.stringify(data));
+await writeFile(OUT_FILE, JSON.stringify(data));
 
 const regionCount = data.regions.length;
 const monthCount = data.national.points.length;

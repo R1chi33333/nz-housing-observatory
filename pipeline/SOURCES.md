@@ -16,6 +16,11 @@ All amounts are NZD. The pipeline standardises region names across sources
 - Why the API and not the CSV: the canonical CSV on tenancy.govt.nz and
   mbie.govt.nz sits behind bot protection that blocks non-browser downloads,
   so automated refreshes use the DataStore mirror instead
+- Known limitation: catalogue.data.govt.nz additionally blocks datacenter IP
+  ranges (GitHub Actions included), so the scheduled refresh cannot always
+  reach it. The pipeline then reuses the committed rent series and refreshes
+  only sales data; rents update fully whenever the pipeline runs from a
+  residential network. Charts always show each source's own freshness
 - Update frequency: monthly
 - Licence: Creative Commons Attribution (credit "Ministry of Business,
   Innovation and Employment")
