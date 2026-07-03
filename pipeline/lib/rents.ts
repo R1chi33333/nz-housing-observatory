@@ -10,6 +10,12 @@ const DATASTORE_URL = 'https://catalogue.data.govt.nz/api/3/action/datastore_sea
 export const RENTS_RESOURCE_ID = '410f751e-b635-4cd0-9495-1b164cbd97b0';
 const PAGE_SIZE = 1000;
 
+/** Polite bot identity: some hosts reject requests with no user agent. */
+const REQUEST_HEADERS = {
+  'User-Agent':
+    'nz-housing-observatory-pipeline/1.0 (+https://github.com/R1chi33333/nz-housing-observatory)',
+};
+
 /** Raw record shape returned by the DataStore for this resource. */
 export interface RawRentRecord {
   Location: string;
@@ -31,7 +37,7 @@ export async function fetchRentRecords(fetchImpl: typeof fetch = fetch): Promise
   let offset = 0;
   for (;;) {
     const url = `${DATASTORE_URL}?resource_id=${RENTS_RESOURCE_ID}&limit=${String(PAGE_SIZE)}&offset=${String(offset)}`;
-    const response = await fetchImpl(url);
+    const response = await fetchImpl(url, { headers: REQUEST_HEADERS });
     if (!response.ok) {
       throw new Error(
         `DataStore request failed: ${String(response.status)} for offset ${String(offset)}`,

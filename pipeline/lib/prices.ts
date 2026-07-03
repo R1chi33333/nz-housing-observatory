@@ -11,6 +11,12 @@ import type { MonthPoint } from './types.ts';
 export const HUD_DASHBOARD_PAGE =
   'https://www.hud.govt.nz/stats-and-insights/property-and-sales-statistics/about-the-dashboard';
 
+/** Polite bot identity: some hosts reject requests with no user agent. */
+const REQUEST_HEADERS = {
+  'User-Agent':
+    'nz-housing-observatory-pipeline/1.0 (+https://github.com/R1chi33333/nz-housing-observatory)',
+};
+
 const WORKBOOK_LINK = /\/assets\/[^"' ]*Property-and-Sales-data-download[^"' ]*\.xlsx[^"' ]*/i;
 
 /** Find the current workbook URL on the dashboard page HTML. */
@@ -23,12 +29,12 @@ export function extractWorkbookUrl(html: string, base = 'https://www.hud.govt.nz
 }
 
 export async function fetchSalesWorkbook(fetchImpl: typeof fetch = fetch): Promise<ArrayBuffer> {
-  const page = await fetchImpl(HUD_DASHBOARD_PAGE);
+  const page = await fetchImpl(HUD_DASHBOARD_PAGE, { headers: REQUEST_HEADERS });
   if (!page.ok) {
     throw new Error(`HUD dashboard page request failed: ${String(page.status)}`);
   }
   const url = extractWorkbookUrl(await page.text());
-  const workbook = await fetchImpl(url);
+  const workbook = await fetchImpl(url, { headers: REQUEST_HEADERS });
   if (!workbook.ok) {
     throw new Error(`HUD workbook download failed: ${String(workbook.status)}`);
   }
