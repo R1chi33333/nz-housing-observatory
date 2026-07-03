@@ -46,6 +46,24 @@ const sales = cleanSales(parseSalesSheet(workbook));
 
 const data = buildHousingData(rents, sales, new Date().toISOString());
 
+/** Serialise with the timestamp blanked, for change detection. */
+function contentKey(doc: HousingData): string {
+  return JSON.stringify({ ...doc, meta: { ...doc.meta, generatedAt: '' } });
+}
+
+let unchanged = false;
+try {
+  const previous = JSON.parse(await readFile(OUT_FILE, 'utf8')) as HousingData;
+  unchanged = contentKey(previous) === contentKey(data);
+} catch {
+  // No previous file: always write.
+}
+
+if (unchanged) {
+  console.log('Data content unchanged; keeping the existing housing.json.');
+  process.exit(0);
+}
+
 await mkdir(OUT_DIR, { recursive: true });
 await writeFile(OUT_FILE, JSON.stringify(data));
 
