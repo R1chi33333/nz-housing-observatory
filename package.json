@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "pipeline": "node --env-file-if-exists=.env pipeline/run.ts"
+    "pipeline": "node --env-file-if-exists=.env pipeline/run.ts",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.1.0",

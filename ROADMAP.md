@@ -21,8 +21,8 @@ Development follows small, releasable increments. Each item below is one loop.
 
 ## Milestone: v1.0.0 — Ship
 
-- [ ] Loop 10: mobile fallback — list plus charts below the map breakpoint
-- [ ] Loop 11: source and updated-at annotations on every chart, polish pass
+- [x] Loop 10: mobile fallback — region list plus charts below the map breakpoint
+- [x] Loop 11: Playwright e2e for the desktop map flow and the mobile list flow
 - [ ] Loop 12: README with architecture diagram, screenshot and data documentation
 - [ ] Release v1.0.0
 

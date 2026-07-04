@@ -8,3 +8,5 @@ coverage/
 !.env.example
 .vercel
 pipeline/.cache/
+test-results/
+playwright-report/

@@ -1,17 +1,35 @@
-import { useMemo, useState } from 'react';
-import { Map as MapIcon, X } from 'lucide-react';
-import { CompareChart, SERIES_COLOURS, type CompareSeries } from '@/components/CompareChart';
+import { useEffect, useMemo, useState } from 'react';
+import { Map as MapIcon } from 'lucide-react';
+import { RegionList } from '@/components/RegionList';
 import { RegionMap } from '@/components/RegionMap';
+import { RegionPanel } from '@/components/RegionPanel';
 import { TimeSlider } from '@/components/TimeSlider';
-import { TrendChart } from '@/components/TrendChart';
 import { formatMonth, latestValue, useHousingData, type RegionSeries } from '@/lib/data';
-import { toChartPoints } from '@/lib/series';
 
 const NATIONAL = 'new-zealand';
 const MAX_COMPARE = 3;
 
+/** True at or above the lg breakpoint; the map only mounts there. */
+function useIsDesktop(): boolean {
+  const [isDesktop, setIsDesktop] = useState(
+    () => window.matchMedia('(min-width: 1024px)').matches,
+  );
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 1024px)');
+    const onChange = (event: MediaQueryListEvent) => {
+      setIsDesktop(event.matches);
+    };
+    query.addEventListener('change', onChange);
+    return () => {
+      query.removeEventListener('change', onChange);
+    };
+  }, []);
+  return isDesktop;
+}
+
 export default function App() {
   const { data, error } = useHousingData();
+  const isDesktop = useIsDesktop();
   const [selection, setSelection] = useState<string[]>([]);
   const [monthIndex, setMonthIndex] = useState<number | undefined>(undefined);
 
@@ -63,16 +81,7 @@ export default function App() {
   const panelSeries =
     selectedSeries.length > 0 ? selectedSeries : data ? [data.housing.national] : [];
 
-  const priceCompare: CompareSeries[] = panelSeries.map((series) => ({
-    slug: series.slug,
-    name: series.name,
-    points: toChartPoints(series, 'medianSalePrice'),
-  }));
-  const rentCompare: CompareSeries[] = panelSeries.map((series) => ({
-    slug: series.slug,
-    name: series.name,
-    points: toChartPoints(series, 'medianRent'),
-  }));
+  const nameFor = (slug: string): string => findSeries(slug)?.name ?? slug;
 
   return (
     <div className="flex h-screen flex-col">
@@ -89,21 +98,21 @@ export default function App() {
         </a>
       </header>
 
-      <main className="flex min-h-0 flex-1">
-        <div className="relative min-w-0 flex-1">
-          {data ? (
+      {!data && (
+        <div className="flex flex-1 items-center justify-center text-sm text-fg-muted">
+          {error ? `Could not load data: ${error}` : 'Loading data...'}
+        </div>
+      )}
+
+      {data && isDesktop && (
+        <main className="flex min-h-0 flex-1">
+          <div className="relative min-w-0 flex-1">
             <RegionMap
               boundaries={data.boundaries}
               values={priceValues}
               selected={selection}
               onSelect={toggleRegion}
             />
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-fg-muted">
-              {error ? `Could not load data: ${error}` : 'Loading data...'}
-            </div>
-          )}
-          {data && (
             <div className="absolute inset-x-4 bottom-6 flex flex-wrap items-end justify-between gap-3">
               <div className="max-w-sm rounded-md border border-border bg-surface-1/90 px-3 py-2 text-xs text-fg-muted backdrop-blur">
                 Median sale price{activeMonth ? ` in ${formatMonth(activeMonth)}` : ''}, 3-month
@@ -112,73 +121,34 @@ export default function App() {
               </div>
               <TimeSlider months={months} index={activeIndex} onChange={setMonthIndex} />
             </div>
-          )}
-        </div>
+          </div>
 
-        <aside className="w-96 shrink-0 overflow-y-auto border-l border-border p-5 max-lg:hidden">
-          {data ? (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                {selection.length === 0 ? (
-                  <h1 className="text-lg font-semibold">New Zealand</h1>
-                ) : (
-                  selection.map((slug, i) => (
-                    <button
-                      key={slug}
-                      type="button"
-                      onClick={() => {
-                        toggleRegion(slug);
-                      }}
-                      className="flex items-center gap-1.5 rounded-md border border-border bg-surface-1 px-2.5 py-1 text-sm transition-colors hover:bg-surface-2"
-                    >
-                      <span
-                        className="size-2 rounded-full"
-                        style={{ background: SERIES_COLOURS[i % SERIES_COLOURS.length] }}
-                      />
-                      {findSeries(slug)?.name ?? slug}
-                      <X className="size-3 text-fg-muted" strokeWidth={2} />
-                    </button>
-                  ))
-                )}
-              </div>
+          <aside className="w-96 shrink-0 overflow-y-auto border-l border-border p-5">
+            <RegionPanel
+              selection={selection}
+              panelSeries={panelSeries}
+              onToggle={toggleRegion}
+              nameFor={nameFor}
+            />
+          </aside>
+        </main>
+      )}
 
-              {panelSeries.length === 1 && panelSeries[0] ? (
-                <>
-                  <TrendChart
-                    title="Median sale price"
-                    points={toChartPoints(panelSeries[0], 'medianSalePrice')}
-                    colour="#f59e0b"
-                    sourceName="HUD property sales statistics"
-                  />
-                  <TrendChart
-                    title="Median weekly rent"
-                    points={toChartPoints(panelSeries[0], 'medianRent')}
-                    colour="#fbbf24"
-                    sourceName="MBIE Tenancy Services bond data"
-                  />
-                </>
-              ) : (
-                <>
-                  <CompareChart
-                    title="Median sale price"
-                    series={priceCompare}
-                    sourceName="HUD property sales statistics"
-                  />
-                  <CompareChart
-                    title="Median weekly rent"
-                    series={rentCompare}
-                    sourceName="MBIE Tenancy Services bond data"
-                  />
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="flex h-full items-center justify-center text-center text-sm text-fg-muted">
-              Loading...
-            </div>
-          )}
-        </aside>
-      </main>
+      {data && !isDesktop && (
+        <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+          <RegionPanel
+            selection={selection}
+            panelSeries={panelSeries}
+            onToggle={toggleRegion}
+            nameFor={nameFor}
+          />
+          <RegionList
+            regions={data.housing.regions}
+            selection={selection}
+            onToggle={toggleRegion}
+          />
+        </main>
+      )}
 
       <footer className="border-t border-border px-4 py-2 text-xs text-fg-muted">
         Data: MBIE Tenancy Services and HUD (open data).
