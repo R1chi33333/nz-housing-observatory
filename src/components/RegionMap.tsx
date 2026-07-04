@@ -17,7 +17,7 @@ export interface ChoroplethValues {
 interface RegionMapProps {
   boundaries: RegionGeoJson;
   values: ReadonlyMap<string, number>;
-  selected: string | undefined;
+  selected: readonly string[];
   onSelect: (slug: string) => void;
 }
 
@@ -155,7 +155,7 @@ export function RegionMap({ boundaries, values, selected, onSelect }: RegionMapP
     if (!map || !loadedRef.current) {
       return;
     }
-    map.setFilter('region-selected', ['==', ['get', 'slug'], selected ?? '']);
+    map.setFilter('region-selected', ['in', ['get', 'slug'], ['literal', [...selected]]]);
   }, [selected]);
 
   return <div ref={containerRef} className="h-full w-full" aria-label="Map of NZ regions" />;

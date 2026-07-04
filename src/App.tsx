@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Map as MapIcon } from 'lucide-react';
+import { Map as MapIcon, X } from 'lucide-react';
+import { CompareChart, SERIES_COLOURS, type CompareSeries } from '@/components/CompareChart';
 import { RegionMap } from '@/components/RegionMap';
 import { TimeSlider } from '@/components/TimeSlider';
 import { TrendChart } from '@/components/TrendChart';
@@ -7,10 +8,11 @@ import { formatMonth, latestValue, useHousingData, type RegionSeries } from '@/l
 import { toChartPoints } from '@/lib/series';
 
 const NATIONAL = 'new-zealand';
+const MAX_COMPARE = 3;
 
 export default function App() {
   const { data, error } = useHousingData();
-  const [selected, setSelected] = useState<string>(NATIONAL);
+  const [selection, setSelection] = useState<string[]>([]);
   const [monthIndex, setMonthIndex] = useState<number | undefined>(undefined);
 
   const months = useMemo(
@@ -38,10 +40,39 @@ export default function App() {
     return values;
   }, [data, activeMonth]);
 
-  const series: RegionSeries | undefined =
-    selected === NATIONAL
+  function toggleRegion(slug: string): void {
+    setSelection((current) => {
+      if (current.includes(slug)) {
+        return current.filter((s) => s !== slug);
+      }
+      if (current.length >= MAX_COMPARE) {
+        return [...current.slice(0, MAX_COMPARE - 1), slug];
+      }
+      return [...current, slug];
+    });
+  }
+
+  const findSeries = (slug: string): RegionSeries | undefined =>
+    slug === NATIONAL
       ? data?.housing.national
-      : data?.housing.regions.find((region) => region.slug === selected);
+      : data?.housing.regions.find((region) => region.slug === slug);
+
+  const selectedSeries = selection
+    .map(findSeries)
+    .filter((series): series is RegionSeries => series !== undefined);
+  const panelSeries =
+    selectedSeries.length > 0 ? selectedSeries : data ? [data.housing.national] : [];
+
+  const priceCompare: CompareSeries[] = panelSeries.map((series) => ({
+    slug: series.slug,
+    name: series.name,
+    points: toChartPoints(series, 'medianSalePrice'),
+  }));
+  const rentCompare: CompareSeries[] = panelSeries.map((series) => ({
+    slug: series.slug,
+    name: series.name,
+    points: toChartPoints(series, 'medianRent'),
+  }));
 
   return (
     <div className="flex h-screen flex-col">
@@ -64,8 +95,8 @@ export default function App() {
             <RegionMap
               boundaries={data.boundaries}
               values={priceValues}
-              selected={selected === NATIONAL ? undefined : selected}
-              onSelect={setSelected}
+              selected={selection}
+              onSelect={toggleRegion}
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-fg-muted">
@@ -74,9 +105,10 @@ export default function App() {
           )}
           {data && (
             <div className="absolute inset-x-4 bottom-6 flex flex-wrap items-end justify-between gap-3">
-              <div className="rounded-md border border-border bg-surface-1/90 px-3 py-2 text-xs text-fg-muted backdrop-blur">
+              <div className="max-w-sm rounded-md border border-border bg-surface-1/90 px-3 py-2 text-xs text-fg-muted backdrop-blur">
                 Median sale price{activeMonth ? ` in ${formatMonth(activeMonth)}` : ''}, 3-month
-                rolling. Darker is cheaper, shading is relative within the month. Click a region.
+                rolling. Darker is cheaper, shading is relative within the month. Click up to{' '}
+                {MAX_COMPARE} regions to compare.
               </div>
               <TimeSlider months={months} index={activeIndex} onChange={setMonthIndex} />
             </div>
@@ -84,34 +116,61 @@ export default function App() {
         </div>
 
         <aside className="w-96 shrink-0 overflow-y-auto border-l border-border p-5 max-lg:hidden">
-          {series && data ? (
+          {data ? (
             <div className="flex flex-col gap-4">
-              <div className="flex items-baseline justify-between gap-2">
-                <h1 className="text-lg font-semibold">{series.name}</h1>
-                {selected !== NATIONAL && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelected(NATIONAL);
-                    }}
-                    className="text-xs text-fg-muted transition-colors hover:text-fg"
-                  >
-                    Back to national
-                  </button>
+              <div className="flex flex-wrap items-center gap-2">
+                {selection.length === 0 ? (
+                  <h1 className="text-lg font-semibold">New Zealand</h1>
+                ) : (
+                  selection.map((slug, i) => (
+                    <button
+                      key={slug}
+                      type="button"
+                      onClick={() => {
+                        toggleRegion(slug);
+                      }}
+                      className="flex items-center gap-1.5 rounded-md border border-border bg-surface-1 px-2.5 py-1 text-sm transition-colors hover:bg-surface-2"
+                    >
+                      <span
+                        className="size-2 rounded-full"
+                        style={{ background: SERIES_COLOURS[i % SERIES_COLOURS.length] }}
+                      />
+                      {findSeries(slug)?.name ?? slug}
+                      <X className="size-3 text-fg-muted" strokeWidth={2} />
+                    </button>
+                  ))
                 )}
               </div>
-              <TrendChart
-                title="Median sale price"
-                points={toChartPoints(series, 'medianSalePrice')}
-                colour="#f59e0b"
-                sourceName="HUD property sales statistics"
-              />
-              <TrendChart
-                title="Median weekly rent"
-                points={toChartPoints(series, 'medianRent')}
-                colour="#fbbf24"
-                sourceName="MBIE Tenancy Services bond data"
-              />
+
+              {panelSeries.length === 1 && panelSeries[0] ? (
+                <>
+                  <TrendChart
+                    title="Median sale price"
+                    points={toChartPoints(panelSeries[0], 'medianSalePrice')}
+                    colour="#f59e0b"
+                    sourceName="HUD property sales statistics"
+                  />
+                  <TrendChart
+                    title="Median weekly rent"
+                    points={toChartPoints(panelSeries[0], 'medianRent')}
+                    colour="#fbbf24"
+                    sourceName="MBIE Tenancy Services bond data"
+                  />
+                </>
+              ) : (
+                <>
+                  <CompareChart
+                    title="Median sale price"
+                    series={priceCompare}
+                    sourceName="HUD property sales statistics"
+                  />
+                  <CompareChart
+                    title="Median weekly rent"
+                    series={rentCompare}
+                    sourceName="MBIE Tenancy Services bond data"
+                  />
+                </>
+              )}
             </div>
           ) : (
             <div className="flex h-full items-center justify-center text-center text-sm text-fg-muted">
