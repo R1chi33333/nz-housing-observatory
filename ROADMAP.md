@@ -15,7 +15,7 @@ Development follows small, releasable increments. Each item below is one loop.
 
 - [x] Loop 6: region choropleth map with MapLibre GL and the OpenFreeMap dark basemap
 - [x] Loop 7: side panel trend charts with year-on-year change and per-chart source notes
-- [ ] Loop 8: time slider replaying the map through the years
+- [x] Loop 8: time slider replaying the map through the years
 - [ ] Loop 9: compare mode — up to three regions overlaid on the charts
 - [ ] Release v0.2.0
 

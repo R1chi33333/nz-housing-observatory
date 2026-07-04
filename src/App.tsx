@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Map as MapIcon } from 'lucide-react';
 import { RegionMap } from '@/components/RegionMap';
+import { TimeSlider } from '@/components/TimeSlider';
 import { TrendChart } from '@/components/TrendChart';
 import { formatMonth, latestValue, useHousingData, type RegionSeries } from '@/lib/data';
 import { toChartPoints } from '@/lib/series';
@@ -10,19 +11,32 @@ const NATIONAL = 'new-zealand';
 export default function App() {
   const { data, error } = useHousingData();
   const [selected, setSelected] = useState<string>(NATIONAL);
+  const [monthIndex, setMonthIndex] = useState<number | undefined>(undefined);
+
+  const months = useMemo(
+    () =>
+      data
+        ? data.housing.national.points
+            .filter((point) => point.medianSalePrice !== undefined)
+            .map((point) => point.month)
+        : [],
+    [data],
+  );
+  const activeIndex = monthIndex ?? Math.max(0, months.length - 1);
+  const activeMonth = months[activeIndex];
 
   const priceValues = useMemo(() => {
     const values = new Map<string, number>();
     if (data) {
       for (const region of data.housing.regions) {
-        const latest = latestValue(region, 'medianSalePrice');
+        const latest = latestValue(region, 'medianSalePrice', activeMonth);
         if (latest) {
           values.set(region.slug, latest.value);
         }
       }
     }
     return values;
-  }, [data]);
+  }, [data, activeMonth]);
 
   const series: RegionSeries | undefined =
     selected === NATIONAL
@@ -59,8 +73,12 @@ export default function App() {
             </div>
           )}
           {data && (
-            <div className="absolute bottom-6 left-4 rounded-md border border-border bg-surface-1/90 px-3 py-2 text-xs text-fg-muted backdrop-blur">
-              Median sale price, 3-month rolling. Darker is cheaper. Click a region.
+            <div className="absolute inset-x-4 bottom-6 flex flex-wrap items-end justify-between gap-3">
+              <div className="rounded-md border border-border bg-surface-1/90 px-3 py-2 text-xs text-fg-muted backdrop-blur">
+                Median sale price{activeMonth ? ` in ${formatMonth(activeMonth)}` : ''}, 3-month
+                rolling. Darker is cheaper, shading is relative within the month. Click a region.
+              </div>
+              <TimeSlider months={months} index={activeIndex} onChange={setMonthIndex} />
             </div>
           )}
         </div>
