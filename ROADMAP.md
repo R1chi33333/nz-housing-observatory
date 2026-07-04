@@ -23,8 +23,8 @@ Development follows small, releasable increments. Each item below is one loop.
 
 - [x] Loop 10: mobile fallback — region list plus charts below the map breakpoint
 - [x] Loop 11: Playwright e2e for the desktop map flow and the mobile list flow
-- [ ] Loop 12: README with architecture diagram, screenshot and data documentation
-- [ ] Release v1.0.0
+- [x] Loop 12: README with architecture diagram, screenshot and data documentation
+- [x] Release v1.0.0
 
 ## Later
 

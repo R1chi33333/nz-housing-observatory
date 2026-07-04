@@ -6,7 +6,7 @@
 
 [Live Demo](https://nz-housing-observatory.vercel.app) · [Documentation](#getting-started) · [Report Bug](https://github.com/R1chi33333/nz-housing-observatory/issues/new?template=bug_report.md)
 
-> Status: under active development, pre-v0.1.0.
+![NZ Housing Observatory dashboard](./docs/screenshot.png)
 
 ## Why this exists
 
@@ -42,15 +42,21 @@ TypeScript (strict), Vite, React, MapLibre GL, Recharts, Tailwind CSS, Vitest. D
 git clone https://github.com/R1chi33333/nz-housing-observatory.git
 cd nz-housing-observatory
 npm ci
-npm run pipeline   # rebuild public/data from the open datasets
-npm run dev
+npm run dev        # committed data, no network needed
+npm run pipeline   # optional: rebuild public/data from the open datasets
 ```
+
+The rent source needs a local Chrome to pass its bot challenge; see
+[pipeline/SOURCES.md](./pipeline/SOURCES.md) for every dataset, licence,
+cleaning decision and the story of why the pipeline stopped trusting the
+data.govt.nz mirror.
 
 ## Testing
 
 ```bash
 npm test               # pipeline and lib unit tests
 npm run test:coverage  # with coverage report
+npm run e2e            # Playwright: desktop map flow and mobile list flow
 ```
 
 ## Roadmap
