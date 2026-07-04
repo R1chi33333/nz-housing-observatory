@@ -10,7 +10,7 @@
 
 ## Why this exists
 
-Housing dominates every New Zealand conversation, but the public numbers live in scattered spreadsheets on agency websites. This project turns open Stats NZ and MBIE data into one interactive map: how prices and rents moved, region by region, year by year. No API keys, no paywalled data, and the cleaning pipeline is open and tested.
+Housing dominates every New Zealand conversation, but the public numbers live in scattered spreadsheets on agency websites. This project turns open MBIE and Ministry of Housing (HUD) data into one interactive map: how prices and rents moved, region by region, year by year. No API keys, no paywalled data, and the cleaning pipeline is open and tested.
 
 ## Features
 
