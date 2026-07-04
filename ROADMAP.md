@@ -14,7 +14,7 @@ Development follows small, releasable increments. Each item below is one loop.
 ## Milestone: v0.2.0 — Dashboard
 
 - [x] Loop 6: region choropleth map with MapLibre GL and the OpenFreeMap dark basemap
-- [ ] Loop 7: side panel — median price and rent trend lines with year-on-year change for the selected region
+- [x] Loop 7: side panel trend charts with year-on-year change and per-chart source notes
 - [ ] Loop 8: time slider replaying the map through the years
 - [ ] Loop 9: compare mode — up to three regions overlaid on the charts
 - [ ] Release v0.2.0
